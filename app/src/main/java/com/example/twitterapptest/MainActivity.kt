@@ -21,6 +21,7 @@ import com.example.twitterapptest.ui.theme.TwitterAppTestTheme
 import com.github.scribejava.core.pkce.PKCE
 import com.github.scribejava.core.pkce.PKCECodeChallengeMethod
 import com.twitter.clientlib.TwitterCredentialsOAuth2
+import com.twitter.clientlib.api.TwitterApi
 import com.twitter.clientlib.auth.TwitterOAuth20Service
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -86,6 +87,16 @@ class MainActivity : ComponentActivity() {
                             }
                         ) {
                             Text(text = "認証")
+                        }
+
+                        Button(
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    getBookmark()
+                                }
+                            }
+                        ) {
+                            Text(text = "ブックマーク取得")
                         }
 
                     }
@@ -175,6 +186,27 @@ class MainActivity : ComponentActivity() {
             Log.i("Oauth", "${it.localizedMessage}")
         }
 
+    }
+
+    /**
+     * ブックマークの取得
+     */
+    private fun getBookmark() {
+        Log.i("getBookMark", credentials.twitterOauth2AccessToken)
+        Log.i("getBookMark", credentials.twitterOauth2RefreshToken)
+
+        val apiInstance = TwitterApi(credentials)
+
+        runCatching {
+            apiInstance.bookmarks().getUsersIdBookmarks("2942060174").execute()
+        }.onSuccess {
+            Log.i("BookMark_Success", "$it")
+        }.onFailure {
+            // 再認証が必要なダイアログなどを出す
+            Log.i("BookMark_Failure_local", it.localizedMessage)
+            Log.i("BookMark_Failure_message", "${it.message}")
+            Log.i("BookMark_Failure_cause", "${it.cause}")
+        }
     }
 
 }
