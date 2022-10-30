@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.twitterapptest.ui.theme.TwitterAppTestTheme
 import com.github.scribejava.core.pkce.PKCE
 import com.github.scribejava.core.pkce.PKCECodeChallengeMethod
+import com.github.scribejava.core.revoke.TokenTypeHint
 import com.twitter.clientlib.TwitterCredentialsOAuth2
 import com.twitter.clientlib.api.TwitterApi
 import com.twitter.clientlib.auth.TwitterOAuth20Service
@@ -87,6 +88,16 @@ class MainActivity : ComponentActivity() {
                             }
                         ) {
                             Text(text = "認証")
+                        }
+
+                        Button(
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    revokeToken()
+                                }
+                            }
+                        ) {
+                            Text(text = "ログアウト")
                         }
 
                         Button(
@@ -209,4 +220,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
+    /**
+     * ログアウト処理
+     * （取得したトークンを失効させる処理）
+     */
+    private fun revokeToken() {
+
+        service.revokeToken(credentials.twitterOauth2AccessToken, TokenTypeHint.ACCESS_TOKEN)
+
+        val prefs = getSharedPreferences("TwitterOauth", MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("OauthToken", "")
+            putString("OauthRefreshToken", "")
+        }.apply()
+        credentials.twitterOauth2AccessToken = ""
+        credentials.twitterOauth2RefreshToken = ""
+
+    }
 }
