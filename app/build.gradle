@@ -60,4 +60,12 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
     debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
+
+    // Twitter-API-Java-SDK
+    implementation ("com.twitter:twitter-api-java-sdk:2.0.3")  {
+        exclude group:'org.apache.oltu.oauth2' , module: 'org.apache.oltu.oauth2.common'
+        exclude module: 'listenablefuture'
+        exclude module: 'guava'
+    }
+
 }
