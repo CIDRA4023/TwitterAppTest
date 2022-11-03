@@ -1,6 +1,5 @@
 package com.example.twitterapptest
 
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -18,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.twitterapptest.ui.theme.TwitterAppTestTheme
+import com.github.scribejava.core.model.OAuth2AccessToken
 import com.github.scribejava.core.pkce.PKCE
 import com.github.scribejava.core.pkce.PKCECodeChallengeMethod
 import com.github.scribejava.core.revoke.TokenTypeHint
@@ -49,8 +49,8 @@ class MainActivity : ComponentActivity() {
         credentials = TwitterCredentialsOAuth2(
             TWITTER_OAUTH2_CLIENT_ID,
             TWITTER_OAUTH2_CLIENT_SECRET,
-            prefs.getString("OauthToken", "a"),
-            prefs.getString("OauthRefreshToken", "b")
+            prefs.getString("OauthToken", ""),
+            prefs.getString("OauthRefreshToken", "")
         ).apply {
             isOAUth2AutoRefreshToken = true // トークンの自動更新有効化
         }
@@ -82,8 +82,7 @@ class MainActivity : ComponentActivity() {
                         Button(
                             onClick = {
                                 scope.launch(Dispatchers.IO) {
-                                    val context = applicationContext
-                                    getOauth(context)
+                                    openOAuthURL()
                                 }
                             }
                         ) {
@@ -138,11 +137,21 @@ class MainActivity : ComponentActivity() {
 
     /**
      * アクセストークンの取得
-     * トークン取得後はSharedPreferenceとTwitterCredentialsOAuth2オブジェクトへ格納
      */
     private fun getAccessToken(code: String?) {
 
         val accessToken = service.getAccessToken(pkce, code)
+
+        storeToken(accessToken)
+
+        Log.i("onNewIntent", credentials.twitterOauth2AccessToken)
+        Log.i("onNewIntent", credentials.twitterOauth2RefreshToken)
+    }
+
+    /**
+     * アクセストークンの保管
+     */
+    private fun storeToken(accessToken: OAuth2AccessToken) {
 
         val prefs = getSharedPreferences("TwitterOauth", MODE_PRIVATE)
         prefs.edit().apply {
@@ -150,18 +159,17 @@ class MainActivity : ComponentActivity() {
             putString("OauthRefreshToken", accessToken.refreshToken)
         }.apply()
 
-        credentials.twitterOauth2AccessToken = accessToken.accessToken
-        credentials.twitterOauth2RefreshToken = accessToken.refreshToken
-
-        Log.i("onNewIntent", credentials.twitterOauth2AccessToken)
-        Log.i("onNewIntent", credentials.twitterOauth2RefreshToken)
+        credentials.apply {
+            twitterOauth2AccessToken = accessToken.accessToken
+            twitterOauth2RefreshToken = accessToken.refreshToken
+        }
     }
 
     /**
      * 認証処理
      * デフォルトブラウザを使って認証ページへ遷移
      */
-    private fun getOauth(context: Context)  {
+    private fun openOAuthURL() {
 
         val authUrl = service.getAuthorizationUrl(pkce, SECRET_STATE)
 
@@ -172,29 +180,28 @@ class MainActivity : ComponentActivity() {
         val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://"))
         val twitterIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://twitter.com/"))
 
-        val defaultResInfo =
+        val existsDefBrows =
             packageManager.resolveActivity(browserIntent, PackageManager.MATCH_DEFAULT_ONLY)
 
         // 端末にツイッターアプリが入っているか確認
-        val defaultTwitter =
+        val existsTwitterApp =
             packageManager.resolveActivity(twitterIntent, PackageManager.MATCH_DEFAULT_ONLY)
 
         runCatching {
-            if (defaultTwitter != null) {
+            if (existsTwitterApp != null) {
                 // ブラウザアプリがインストールされていたら
-                if (defaultResInfo != null) {
+                if (existsDefBrows != null) {
 
-                    intent.setPackage(defaultResInfo.activityInfo.packageName)
+                    intent.setPackage(existsDefBrows.activityInfo.packageName)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
-                    Log.i("intent", "$intent")
                     startActivity(intent)
                 }
             } else {
                 startActivity(intent)
             }
         }.getOrElse {
-            Log.i("Oauth", "${it.localizedMessage}")
+            Log.i("openOAuthURL_Error", "${it.localizedMessage}")
         }
 
     }
@@ -234,8 +241,11 @@ class MainActivity : ComponentActivity() {
             putString("OauthToken", "")
             putString("OauthRefreshToken", "")
         }.apply()
-        credentials.twitterOauth2AccessToken = ""
-        credentials.twitterOauth2RefreshToken = ""
+
+        credentials.apply {
+            twitterOauth2AccessToken = ""
+            twitterOauth2RefreshToken = ""
+        }
 
     }
 }
