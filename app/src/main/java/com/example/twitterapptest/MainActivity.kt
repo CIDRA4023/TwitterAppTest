@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -21,11 +22,13 @@ import com.github.scribejava.core.model.OAuth2AccessToken
 import com.github.scribejava.core.pkce.PKCE
 import com.github.scribejava.core.pkce.PKCECodeChallengeMethod
 import com.github.scribejava.core.revoke.TokenTypeHint
+import com.twitter.clientlib.ApiClientCallback
 import com.twitter.clientlib.TwitterCredentialsOAuth2
 import com.twitter.clientlib.api.TwitterApi
 import com.twitter.clientlib.auth.TwitterOAuth20Service
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class MainActivity : ComponentActivity() {
@@ -138,14 +141,19 @@ class MainActivity : ComponentActivity() {
     /**
      * アクセストークンの取得
      */
-    private fun getAccessToken(code: String?) {
+    private suspend fun getAccessToken(code: String?) {
 
         val accessToken = service.getAccessToken(pkce, code)
 
         storeToken(accessToken)
 
-        Log.i("onNewIntent", credentials.twitterOauth2AccessToken)
-        Log.i("onNewIntent", credentials.twitterOauth2RefreshToken)
+        withContext(Dispatchers.Main) {
+            val toast = Toast.makeText(applicationContext, "認証完了", Toast.LENGTH_SHORT)
+            toast.show()
+        }
+
+        Log.i("1refreshToken", credentials.twitterOauth2AccessToken)
+        Log.i("2refreshToken", credentials.twitterOauth2RefreshToken)
     }
 
     /**
@@ -209,30 +217,36 @@ class MainActivity : ComponentActivity() {
     /**
      * ブックマークの取得
      */
-    private fun getBookmark() {
-        Log.i("getBookMark", credentials.twitterOauth2AccessToken)
-        Log.i("getBookMark", credentials.twitterOauth2RefreshToken)
+    private suspend fun getBookmark() {
 
         val apiInstance = TwitterApi(credentials)
+        Log.i("getBookMark", credentials.twitterOauth2AccessToken)
+        Log.i("getBookMark", credentials.twitterOauth2RefreshToken)
 
         runCatching {
             apiInstance.bookmarks().getUsersIdBookmarks("2942060174").execute()
         }.onSuccess {
-            Log.i("BookMark_Success", "$it")
+            withContext(Dispatchers.Main) {
+                val toast = Toast.makeText(applicationContext, "ブックマーク取得成功！", Toast.LENGTH_SHORT)
+                toast.show()
+            }
+            Log.i("BookMark_Success", "Success")
         }.onFailure {
-            // 再認証が必要なダイアログなどを出す
+            withContext(Dispatchers.Main) {
+                val toast = Toast.makeText(applicationContext, "ブックマーク取得失敗", Toast.LENGTH_SHORT)
+                toast.show()
+            }
             Log.i("BookMark_Failure_local", it.localizedMessage)
             Log.i("BookMark_Failure_message", "${it.message}")
             Log.i("BookMark_Failure_cause", "${it.cause}")
         }
     }
 
-
     /**
      * ログアウト処理
      * （取得したトークンを失効させる処理）
      */
-    private fun revokeToken() {
+    private suspend fun revokeToken() {
 
         service.revokeToken(credentials.twitterOauth2AccessToken, TokenTypeHint.ACCESS_TOKEN)
 
@@ -245,6 +259,11 @@ class MainActivity : ComponentActivity() {
         credentials.apply {
             twitterOauth2AccessToken = ""
             twitterOauth2RefreshToken = ""
+        }
+
+        withContext(Dispatchers.Main) {
+            val toast = Toast.makeText(applicationContext, "ログアウト", Toast.LENGTH_SHORT)
+            toast.show()
         }
 
     }
